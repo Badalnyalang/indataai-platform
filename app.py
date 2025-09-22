@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 from io import StringIO
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="IndataAI Platform", page_icon="🚀", layout="wide")
 
@@ -123,7 +124,7 @@ def main():
         else:
             st.subheader("Interactive 3D Visualization")
             html_content = create_d3_visualization(df)
-            st.components.v1.html(html_content, height=600, scrolling=True)
+            components.html(html_content, height=600, scrolling=True)
             
             st.success("Click the buttons above the chart to see different animations!")
 
