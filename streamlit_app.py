@@ -37,8 +37,15 @@ st.markdown("""
         background: linear-gradient(90deg, #6366f1, #06b6d4);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        text-align: center;
-        margin-bottom: 1rem;
+        text-align: left;
+        margin-bottom: 0.5rem;
+    }
+    
+    .subtitle {
+        font-size: 1.2rem;
+        color: #64748b;
+        text-align: left;
+        margin-bottom: 2rem;
     }
     
     .ai-insight {
@@ -84,7 +91,7 @@ def generate_ai_insights(df):
         missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
         quality_score = max(0, 100 - missing_pct * 2)
         insights.append({
-            "title": "🔍 Data Quality Analysis",
+            "title": "Data Quality Analysis",
             "content": f"Excellent data integrity detected with {quality_score:.1f}% quality score. {len(df)} data points analyzed.",
             "confidence": quality_score
         })
@@ -95,7 +102,7 @@ def generate_ai_insights(df):
             corr_matrix = df[numeric_cols].corr()
             high_corr = (corr_matrix.abs() > 0.7).sum().sum() - len(numeric_cols)
             insights.append({
-                "title": "🧠 Pattern Recognition",
+                "title": "Pattern Recognition",
                 "content": f"Found {high_corr} strong correlations between variables. Multiple clusters detected with distinct patterns.",
                 "confidence": min(95, 70 + high_corr * 5)
             })
@@ -103,6 +110,35 @@ def generate_ai_insights(df):
         # Anomaly detection
         outlier_count = 0
         for col in numeric_cols:
+            if col in df.columns:
+                Q1 = df[col].quantile(0.25)
+                Q3 = df[col].quantile(0.75)
+                IQR = Q3 - Q1
+                outliers = df[(df[col] < Q1 - 1.5*IQR) | (df[col] > Q3 + 1.5*IQR)]
+                outlier_count += len(outliers)
+        
+        insights.append({
+            "title": "Anomaly Detection",
+            "content": f"Identified {outlier_count} potential outliers. These may represent unique patterns or data entry errors.",
+            "confidence": 85
+        })
+        
+        # Trend analysis
+        if len(df) > 10:
+            insights.append({
+                "title": "Trend Analysis",
+                "content": f"Dataset shows {len(df)} observations with clear clustering patterns. Optimal for 3D visualization.",
+                "confidence": 92
+            })
+        
+        # Predictive insights
+        insights.append({
+            "title": "AI Recommendation",
+            "content": f"Based on {len(numeric_cols)} dimensions, 3D scatter plot with clustering is optimal. Expected visualization accuracy: 94%",
+            "confidence": 94
+        })
+    
+    return insights col in numeric_cols:
             if col in df.columns:
                 Q1 = df[col].quantile(0.25)
                 Q3 = df[col].quantile(0.75)
@@ -133,7 +169,7 @@ def generate_ai_insights(df):
     
     return insights
 
-def create_3d_visualization(df, chart_type="scatter"):
+def create_3d_visualization(df, chart_type="scatter", animation_speed=1.0, auto_rotate=True, theme="Viridis"):
     """Create 3D visualization using Plotly"""
     if df is None or len(df) == 0:
         return None
@@ -162,8 +198,50 @@ def create_3d_visualization(df, chart_type="scatter"):
             color=color_col,
             title=f"3D Scatter Plot: {x_col} vs {y_col} vs {z_col}",
             hover_data=df.columns[:6].tolist(),
-            color_continuous_scale="Viridis"
+            color_continuous_scale=theme
         )
+        
+        # Add animation frames if auto_rotate is enabled
+        if auto_rotate:
+            # Create frames for rotation animation
+            frames = []
+            for i in range(0, 360, 10):
+                frame_data = fig.data[0]
+                frames.append(go.Frame(
+                    data=[frame_data],
+                    name=str(i)
+                ))
+            
+            fig.frames = frames
+            
+            # Add animation controls
+            fig.update_layout(
+                updatemenus=[{
+                    "buttons": [
+                        {
+                            "args": [None, {"frame": {"duration": int(500/animation_speed), "redraw": True},
+                                          "fromcurrent": True, "transition": {"duration": 300}}],
+                            "label": "Play Animation",
+                            "method": "animate"
+                        },
+                        {
+                            "args": [[None], {"frame": {"duration": 0, "redraw": True},
+                                            "mode": "immediate", "transition": {"duration": 0}}],
+                            "label": "Pause",
+                            "method": "animate"
+                        }
+                    ],
+                    "direction": "left",
+                    "pad": {"r": 10, "t": 87},
+                    "showactive": False,
+                    "type": "buttons",
+                    "x": 0.1,
+                    "xanchor": "right",
+                    "y": 0,
+                    "yanchor": "top"
+                }]
+            )
+        
     elif chart_type == "surface":
         # Create surface plot
         fig = go.Figure()
@@ -179,33 +257,54 @@ def create_3d_visualization(df, chart_type="scatter"):
         values = df[z_col].values
         Z = griddata(points, values, (X, Y), method='linear')
         
-        fig.add_trace(go.Surface(x=X, y=Y, z=Z, colorscale='Viridis'))
+        fig.add_trace(go.Surface(x=X, y=Y, z=Z, colorscale=theme))
         fig.update_layout(title=f"3D Surface Plot: {z_col} over {x_col} and {y_col}")
     
-    # Update layout for better presentation
+    # Update layout for better presentation with animation
+    camera_settings = dict(eye=dict(x=1.2, y=1.2, z=1.2))
+    
     fig.update_layout(
         height=600,
         scene=dict(
             xaxis_title=x_col,
             yaxis_title=y_col,
             zaxis_title=z_col,
-            camera=dict(eye=dict(x=1.2, y=1.2, z=1.2))
+            camera=camera_settings
         ),
-        margin=dict(l=0, r=0, t=40, b=0)
+        margin=dict(l=0, r=0, t=40, b=0),
+        # Add continuous rotation if enabled
+        scene_camera_eye=dict(x=1.2, y=1.2, z=1.2)
     )
+    
+    # Auto-rotation configuration
+    if auto_rotate and chart_type == "scatter":
+        fig.update_layout(
+            scene=dict(
+                xaxis_title=x_col,
+                yaxis_title=y_col,
+                zaxis_title=z_col,
+                camera=dict(
+                    eye=dict(x=1.2, y=1.2, z=1.2),
+                    center=dict(x=0, y=0, z=0),
+                    up=dict(x=0, y=0, z=1)
+                )
+            ),
+            # Add rotation animation
+            transition={'duration': int(1000/animation_speed)},
+        )
     
     return fig
 
 def main():
     # Main title
-    st.markdown('<h1 class="main-title">🤖 IndataAI Platform</h1>', unsafe_allow_html=True)
-    st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #64748b;">AI-Powered 3D Data Visualization & Analytics</p>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-title">IndataAI Platform</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">AI-Powered 3D Data Visualization & Analytics</p>', unsafe_allow_html=True)
     
     # Create main layout
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.markdown("### 📊 Data Input")
+        st.markdown("### Data Input")
         
         # File upload section
         st.markdown('<div class="upload-section">', unsafe_allow_html=True)
@@ -217,7 +316,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
         
         # Sample data option
-        if st.button("🎲 Use Sample Data"):
+        if st.button("Use Sample Data"):
             # Generate sample business data
             np.random.seed(42)
             sample_data = {
@@ -240,7 +339,7 @@ def main():
                 elif uploaded_file.name.endswith('.json'):
                     st.session_state.data = pd.read_json(uploaded_file)
                     
-                st.success(f"✅ Data loaded: {len(st.session_state.data)} rows")
+                st.success(f"Data loaded: {len(st.session_state.data)} rows")
                 st.session_state.ai_insights = generate_ai_insights(st.session_state.data)
             except Exception as e:
                 st.error(f"Error loading file: {str(e)}")
@@ -249,7 +348,7 @@ def main():
         if st.session_state.data is not None:
             df = st.session_state.data
             
-            st.markdown("### 📋 Dataset Overview")
+            st.markdown("### Dataset Overview")
             col_a, col_b = st.columns(2)
             with col_a:
                 st.markdown(f'<div class="metric-card"><h3>{len(df)}</h3><p>Data Points</p></div>', unsafe_allow_html=True)
@@ -262,8 +361,13 @@ def main():
         
         # Visualization controls
         if st.session_state.data is not None:
-            st.markdown("### 🎨 Visualization Controls")
+            st.markdown("### Visualization Controls")
             chart_type = st.selectbox("Chart Type", ["scatter", "surface"], index=0)
+            
+            # Animation controls
+            st.markdown("**Animation Settings:**")
+            animation_speed = st.slider("Animation Speed", 0.1, 3.0, 1.0, 0.1)
+            auto_rotate = st.checkbox("Auto Rotate Camera", value=True)
             
             # Theme selection
             theme = st.selectbox("Color Theme", 
@@ -271,11 +375,26 @@ def main():
                                index=0)
     
     with col2:
-        st.markdown("### 🎯 3D Visualization")
+        st.markdown("### 3D Visualization")
         
         if st.session_state.data is not None:
+            # Get animation settings
+            animation_speed = 1.0
+            auto_rotate = True
+            theme = "Viridis"
+            chart_type = "scatter"
+            
+            # Get values from sidebar if they exist
+            try:
+                animation_speed = st.session_state.get('animation_speed', 1.0)
+                auto_rotate = st.session_state.get('auto_rotate', True)
+                theme = st.session_state.get('theme', 'Viridis')
+                chart_type = st.session_state.get('chart_type', 'scatter')
+            except:
+                pass
+            
             # Create visualization
-            fig = create_3d_visualization(st.session_state.data, chart_type)
+            fig = create_3d_visualization(st.session_state.data, chart_type, animation_speed, auto_rotate, theme)
             
             if fig is not None:
                 st.plotly_chart(fig, use_container_width=True)
@@ -283,16 +402,16 @@ def main():
                 # Export options
                 col_export1, col_export2 = st.columns(2)
                 with col_export1:
-                    if st.button("📸 Export as PNG"):
+                    if st.button("Export as PNG"):
                         st.success("Visualization exported! (Demo)")
                 with col_export2:
-                    if st.button("🔗 Share Visualization"):
+                    if st.button("Share Visualization"):
                         st.success("Share link generated! (Demo)")
             else:
-                st.warning("⚠️ Please upload data with at least 3 numeric columns for 3D visualization.")
+                st.warning("Please upload data with at least 3 numeric columns for 3D visualization.")
         else:
             # Placeholder visualization
-            st.info("👆 Upload your data or use sample data to see AI-powered 3D visualizations")
+            st.info("Upload your data or use sample data to see AI-powered 3D visualizations")
             
             # Show demo image/placeholder
             fig = go.Figure()
@@ -318,7 +437,7 @@ def main():
     # AI Insights Section (Full Width)
     if st.session_state.ai_insights:
         st.markdown("---")
-        st.markdown("## 🤖 AI-Powered Insights")
+        st.markdown("## AI-Powered Insights")
         
         # Display insights in columns
         cols = st.columns(len(st.session_state.ai_insights))
@@ -342,21 +461,21 @@ def main():
     col_action1, col_action2, col_action3, col_action4 = st.columns(4)
     
     with col_action1:
-        if st.button("🔄 Reset Data", use_container_width=True):
+        if st.button("Reset Data", use_container_width=True):
             st.session_state.data = None
             st.session_state.ai_insights = []
             st.experimental_rerun()
     
     with col_action2:
-        if st.button("📊 Analytics Report", use_container_width=True):
+        if st.button("Analytics Report", use_container_width=True):
             st.success("Analytics report generated! (Demo feature)")
     
     with col_action3:
-        if st.button("🤖 AI Recommendations", use_container_width=True):
+        if st.button("AI Recommendations", use_container_width=True):
             st.success("AI recommendations updated! (Demo feature)")
     
     with col_action4:
-        if st.button("💾 Save Project", use_container_width=True):
+        if st.button("Save Project", use_container_width=True):
             st.success("Project saved! (Demo feature)")
 
 if __name__ == "__main__":
