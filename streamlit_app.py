@@ -109,7 +109,7 @@ def generate_ai_insights(df):
         
         # Anomaly detection
         outlier_count = 0
-        for col in numeric_cols:
+        for col in numeric_cols: col in numeric_cols:
             if col in df.columns:
                 Q1 = df[col].quantile(0.25)
                 Q3 = df[col].quantile(0.75)
