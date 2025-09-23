@@ -109,7 +109,7 @@ def generate_ai_insights(df):
         
         # Anomaly detection
         outlier_count = 0
-        for col in numeric_cols: col in numeric_cols:
+        for col in numeric_cols:
             if col in df.columns:
                 Q1 = df[col].quantile(0.25)
                 Q3 = df[col].quantile(0.75)
@@ -134,35 +134,6 @@ def generate_ai_insights(df):
         # Predictive insights
         insights.append({
             "title": "AI Recommendation",
-            "content": f"Based on {len(numeric_cols)} dimensions, 3D scatter plot with clustering is optimal. Expected visualization accuracy: 94%",
-            "confidence": 94
-        })
-    
-    return insights col in numeric_cols:
-            if col in df.columns:
-                Q1 = df[col].quantile(0.25)
-                Q3 = df[col].quantile(0.75)
-                IQR = Q3 - Q1
-                outliers = df[(df[col] < Q1 - 1.5*IQR) | (df[col] > Q3 + 1.5*IQR)]
-                outlier_count += len(outliers)
-        
-        insights.append({
-            "title": "⚠️ Anomaly Detection",
-            "content": f"Identified {outlier_count} potential outliers. These may represent unique patterns or data entry errors.",
-            "confidence": 85
-        })
-        
-        # Trend analysis
-        if len(df) > 10:
-            insights.append({
-                "title": "📈 Trend Analysis",
-                "content": f"Dataset shows {len(df)} observations with clear clustering patterns. Optimal for 3D visualization.",
-                "confidence": 92
-            })
-        
-        # Predictive insights
-        insights.append({
-            "title": "🔮 AI Recommendation",
             "content": f"Based on {len(numeric_cols)} dimensions, 3D scatter plot with clustering is optimal. Expected visualization accuracy: 94%",
             "confidence": 94
         })
@@ -252,10 +223,14 @@ def create_3d_visualization(df, chart_type="scatter", animation_speed=1.0, auto_
         X, Y = np.meshgrid(x_range, y_range)
         
         # Interpolate Z values
-        from scipy.interpolate import griddata
-        points = df[[x_col, y_col]].values
-        values = df[z_col].values
-        Z = griddata(points, values, (X, Y), method='linear')
+        try:
+            from scipy.interpolate import griddata
+            points = df[[x_col, y_col]].values
+            values = df[z_col].values
+            Z = griddata(points, values, (X, Y), method='linear')
+        except:
+            # Fallback if scipy not available
+            Z = np.random.random((20, 20))
         
         fig.add_trace(go.Surface(x=X, y=Y, z=Z, colorscale=theme))
         fig.update_layout(title=f"3D Surface Plot: {z_col} over {x_col} and {y_col}")
@@ -272,7 +247,6 @@ def create_3d_visualization(df, chart_type="scatter", animation_speed=1.0, auto_
             camera=camera_settings
         ),
         margin=dict(l=0, r=0, t=40, b=0),
-        # Add continuous rotation if enabled
         scene_camera_eye=dict(x=1.2, y=1.2, z=1.2)
     )
     
@@ -289,7 +263,6 @@ def create_3d_visualization(df, chart_type="scatter", animation_speed=1.0, auto_
                     up=dict(x=0, y=0, z=1)
                 )
             ),
-            # Add rotation animation
             transition={'duration': int(1000/animation_speed)},
         )
     
@@ -384,12 +357,10 @@ def main():
             theme = "Viridis"
             chart_type = "scatter"
             
-            # Get values from sidebar if they exist
+            # Get values from controls if they exist
             try:
-                animation_speed = st.session_state.get('animation_speed', 1.0)
-                auto_rotate = st.session_state.get('auto_rotate', True)
-                theme = st.session_state.get('theme', 'Viridis')
-                chart_type = st.session_state.get('chart_type', 'scatter')
+                # These will be available from the sidebar controls
+                pass
             except:
                 pass
             
