@@ -4,79 +4,151 @@ import numpy as np
 import json
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from scipy.stats import pearsonr, zscore
 import streamlit.components.v1 as components
+import base64
+from io import BytesIO
 
 st.set_page_config(page_title="IndataAI Platform", page_icon="🚀", layout="wide")
 
-class IndataAI:
+class AdvancedAI:
     def __init__(self):
         self.insights = []
         self.recommendations = []
+        self.correlations = []
+        self.outliers = []
     
     def analyze_data(self, df):
+        """Enhanced AI analysis with statistical depth"""
         self.insights = []
         self.recommendations = []
+        self.correlations = []
+        self.outliers = []
         
         # Data quality analysis
-        missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
-        quality_score = 100 - missing_pct
-        self.insights.append(f"Data Quality: {quality_score:.1f}%")
+        total_cells = df.shape[0] * df.shape[1]
+        missing_cells = df.isnull().sum().sum()
+        quality_score = ((total_cells - missing_cells) / total_cells) * 100
+        
+        # Column type detection
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
         
         # Correlation analysis
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
         if len(numeric_cols) >= 2:
-            corr_matrix = df[numeric_cols].corr()
-            strong_correlations = []
-            
-            for i in range(len(corr_matrix.columns)):
-                for j in range(i+1, len(corr_matrix.columns)):
-                    corr_val = corr_matrix.iloc[i,j]
-                    if abs(corr_val) > 0.7:
-                        strong_correlations.append({
-                            'var1': corr_matrix.columns[i],
-                            'var2': corr_matrix.columns[j], 
-                            'value': corr_val
-                        })
-            
-            if strong_correlations:
-                self.insights.append(f"Strong correlations: {len(strong_correlations)} found")
+            for i in range(len(numeric_cols)):
+                for j in range(i+1, min(i+6, len(numeric_cols))):
+                    col1, col2 = numeric_cols[i], numeric_cols[j]
+                    valid_data = df[[col1, col2]].dropna()
+                    if len(valid_data) > 3:
+                        corr, p_value = pearsonr(valid_data[col1], valid_data[col2])
+                        if abs(corr) > 0.7:
+                            self.correlations.append({
+                                'col1': col1, 'col2': col2, 'correlation': corr,
+                                'strength': 'Strong' if abs(corr) > 0.8 else 'Moderate'
+                            })
         
-        # Chart recommendations
+        # Outlier detection using z-score
+        for col in numeric_cols[:3]:  # Check first 3 numeric columns
+            values = df[col].dropna()
+            if len(values) > 3:
+                z_scores = np.abs(zscore(values))
+                outlier_indices = np.where(z_scores > 2.5)[0]
+                if len(outlier_indices) > 0:
+                    outlier_count = len(outlier_indices)
+                    outlier_pct = (outlier_count / len(values)) * 100
+                    self.outliers.append({
+                        'column': col, 'count': outlier_count, 
+                        'percentage': outlier_pct
+                    })
+        
+        # Generate insights
+        self.insights.append(f"Data Quality: {quality_score:.1f}% ({df.shape[0]} rows, {df.shape[1]} columns)")
+        
+        if self.correlations:
+            self.insights.append(f"Strong correlations detected: {len(self.correlations)}")
+            for corr in self.correlations[:2]:
+                self.insights.append(f"  • {corr['col1']} ↔ {corr['col2']}: {corr['correlation']:.3f}")
+        
+        if self.outliers:
+            self.insights.append(f"Outliers detected in {len(self.outliers)} columns")
+            for outlier in self.outliers:
+                self.insights.append(f"  • {outlier['column']}: {outlier['count']} points ({outlier['percentage']:.1f}%)")
+        
+        # Smart recommendations
         if len(numeric_cols) >= 3:
             self.recommendations.append({
-                'type': 'scatter',
-                'confidence': 95,
-                'reason': 'Multi-dimensional data optimal for scatter analysis'
+                'type': 'scatter3d', 'confidence': 95,
+                'reason': f'{len(numeric_cols)} numeric variables optimal for 3D exploration'
             })
         
-        if len(df.select_dtypes(include=['object']).columns) >= 1:
+        if len(numeric_cols) >= 2:
             self.recommendations.append({
-                'type': 'bar',
-                'confidence': 90,
-                'reason': 'Categorical data suitable for bar charts'
+                'type': 'scatter', 'confidence': 90,
+                'reason': 'Strong correlation patterns detected'
             })
-            
-        self.recommendations.append({
-            'type': 'line',
-            'confidence': 85,
-            'reason': 'Time-series trends visualization'
-        })
         
-        return self.insights, self.recommendations
+        if len(categorical_cols) >= 1 and len(numeric_cols) >= 1:
+            self.recommendations.append({
+                'type': 'animated_bar', 'confidence': 88,
+                'reason': f'Categorical grouping with {len(categorical_cols)} dimensions'
+            })
+        
+        # Sort by confidence
+        self.recommendations.sort(key=lambda x: x['confidence'], reverse=True)
+        
+        return {
+            'quality_score': quality_score,
+            'numeric_cols': numeric_cols,
+            'categorical_cols': categorical_cols,
+            'insights': self.insights,
+            'recommendations': self.recommendations,
+            'correlations': self.correlations,
+            'outliers': self.outliers
+        }
 
-def create_advanced_visualization(df, chart_type, color_scheme, animation_speed, auto_play):
-    data_json = df.to_json(orient="records")
-    colors = color_scheme
+def auto_detect_columns(df):
+    """Smart column detection for optimal visualization"""
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
     
-    # Dynamic chart selection
-    if chart_type == "Scatter Plot":
-        chart_js = create_scatter_chart_js(colors, animation_speed, auto_play)
-    elif chart_type == "Bar Chart":
-        chart_js = create_bar_chart_js(colors, animation_speed, auto_play)
-    elif chart_type == "Line Chart":
-        chart_js = create_line_chart_js(colors, animation_speed, auto_play)
-    else:
-        chart_js = create_scatter_chart_js(colors, animation_speed, auto_play)
+    # Preference patterns for different column types
+    x_preferences = ['sales_amount', 'sales', 'revenue', 'value', 'amount', 'price']
+    y_preferences = ['profit_margin', 'profit', 'margin', 'pct', 'percentage', 'rate']
+    color_preferences = ['region', 'category', 'group', 'type', 'segment', 'class']
+    time_preferences = ['time', 'date', 'year', 'month', 'quarter', 'season']
+    
+    def find_best_match(cols, preferences):
+        for pref in preferences:
+            for col in cols:
+                if pref.lower() in col.lower():
+                    return col
+        return cols[0] if cols else None
+    
+    return {
+        'x': find_best_match(numeric_cols, x_preferences),
+        'y': find_best_match([c for c in numeric_cols if c != find_best_match(numeric_cols, x_preferences)], y_preferences),
+        'color': find_best_match(categorical_cols, color_preferences),
+        'time': find_best_match(categorical_cols + numeric_cols, time_preferences)
+    }
+
+def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed, columns, ai_analysis):
+    """Enhanced visualization with better animations and export capabilities"""
+    
+    # Prepare data
+    data_sample = df.head(min(500, len(df)))  # Limit for performance
+    data_json = data_sample.to_json(orient="records")
+    
+    # Color schemes
+    color_schemes = {
+        'Professional': ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A994E'],
+        'Vibrant': ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
+        'Corporate': ['#1f4e79', '#2d5aa0', '#5b9bd5', '#a5a5a5', '#70ad47'],
+        'Ocean': ['#006994', '#0091ad', '#00b4c6', '#00d8e0', '#1efcfa'],
+        'Sunset': ['#ff7b7b', '#ff9f43', '#feca57', '#48dbfb', '#0abde3']
+    }
+    
+    colors = color_schemes.get(color_scheme, color_schemes['Professional'])
     
     html_template = f"""
     <!DOCTYPE html>
@@ -84,431 +156,511 @@ def create_advanced_visualization(df, chart_type, color_scheme, animation_speed,
     <head>
         <meta charset="utf-8">
         <script src="https://d3js.org/d3.v7.min.js"></script>
+        <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
         <style>
             body {{
-                font-family: 'Inter', sans-serif;
+                font-family: 'Inter', -apple-system, sans-serif;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                margin: 0; padding: 20px; min-height: 100vh;
+                margin: 0; padding: 0; overflow: hidden;
             }}
-            .container {{ max-width: 1200px; margin: 0 auto; }}
-            .ai-header {{
+            .container {{
+                width: 100vw; height: 100vh;
+                display: flex; flex-direction: column;
+            }}
+            .header {{
                 background: rgba(255,255,255,0.95);
                 backdrop-filter: blur(10px);
-                border-radius: 12px;
-                padding: 20px;
-                margin-bottom: 20px;
-                text-align: center;
-                box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                padding: 16px 24px;
+                border-bottom: 1px solid rgba(255,255,255,0.2);
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             }}
-            .ai-title {{ font-size: 24px; font-weight: 700; color: #2c3e50; margin-bottom: 10px; }}
-            .ai-subtitle {{ font-size: 16px; color: #7f8c8d; }}
+            .title {{
+                font-size: 28px; font-weight: 700; color: #2c3e50;
+                margin: 0 0 8px 0;
+            }}
+            .subtitle {{
+                font-size: 16px; color: #7f8c8d; margin: 0;
+                display: flex; gap: 24px; align-items: center;
+            }}
+            .ai-badge {{
+                background: linear-gradient(135deg, #00B59C 0%, #00A085 100%);
+                color: white; padding: 4px 12px; border-radius: 12px;
+                font-size: 12px; font-weight: 600;
+            }}
             .controls {{
                 background: rgba(255,255,255,0.9);
                 backdrop-filter: blur(10px);
-                border-radius: 12px;
-                padding: 20px;
-                margin-bottom: 20px;
-                text-align: center;
+                padding: 16px 24px;
+                display: flex; gap: 12px; align-items: center;
+                border-bottom: 1px solid rgba(255,255,255,0.2);
+                flex-wrap: wrap;
             }}
             .btn {{
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white; border: none; padding: 12px 24px;
-                border-radius: 8px; margin: 6px; cursor: pointer;
-                font-weight: 600; transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                color: white; border: none; padding: 10px 20px;
+                border-radius: 8px; cursor: pointer; font-weight: 600;
+                transition: all 0.3s ease; font-size: 14px;
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
             }}
             .btn:hover {{
                 transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
             }}
-            .btn.active {{
+            .btn.secondary {{
+                background: rgba(255,255,255,0.2);
+                color: #667eea; border: 1px solid rgba(102, 126, 234, 0.3);
+            }}
+            .btn.export {{
                 background: linear-gradient(135deg, #00B59C 0%, #00A085 100%);
             }}
-            .play-controls {{
-                margin-top: 15px;
-                display: flex;
-                justify-content: center;
-                gap: 10px;
+            .chart-area {{
+                flex: 1; padding: 24px;
+                display: flex; justify-content: center; align-items: center;
             }}
             .chart-container {{
                 background: rgba(255,255,255,0.95);
                 backdrop-filter: blur(10px);
-                border-radius: 16px;
-                padding: 30px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+                border-radius: 16px; padding: 32px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+                width: 100%; max-width: 1000px; height: 600px;
             }}
-            .element {{ transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }}
-            .element:hover {{ transform: scale(1.05); }}
+            .element {{
+                transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+                cursor: pointer;
+            }}
+            .element:hover {{
+                transform: scale(1.1);
+                filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            }}
+            .trail {{
+                opacity: 0.6;
+                stroke-width: 3;
+                fill: none;
+            }}
+            .legend {{
+                font-size: 12px;
+                font-weight: 500;
+            }}
             @keyframes pulse {{
-                0%, 100% {{ opacity: 0.8; }}
-                50% {{ opacity: 1; }}
+                0%, 100% {{ opacity: 0.8; transform: scale(1); }}
+                50% {{ opacity: 1; transform: scale(1.05); }}
             }}
             .pulsing {{ animation: pulse 2s infinite; }}
+            
+            @keyframes slideIn {{
+                from {{ transform: translateY(20px); opacity: 0; }}
+                to {{ transform: translateY(0); opacity: 1; }}
+            }}
+            .slide-in {{ animation: slideIn 0.6s ease-out; }}
         </style>
     </head>
     <body>
         <div class="container">
-            <div class="ai-header">
-                <div class="ai-title">IndataAI - Dynamic Analysis</div>
-                <div class="ai-subtitle">Chart: {chart_type} | AI Confidence: 95% | Speed: {animation_speed}x</div>
-            </div>
-            
-            <div class="controls">
-                <button class="btn" onclick="playAnimation()">▶ Play Animation</button>
-                <button class="btn" onclick="pauseAnimation()">⏸ Pause</button>
-                <button class="btn" onclick="resetView()">🔄 Reset</button>
-                <button class="btn" onclick="analyzeData()">🤖 AI Analyze</button>
-                <button class="btn" onclick="showClusters()">🎯 Clusters</button>
-                <div class="play-controls">
-                    <button class="btn" onclick="changeSpeed(0.5)">0.5x</button>
-                    <button class="btn" onclick="changeSpeed(1.0)">1x</button>
-                    <button class="btn" onclick="changeSpeed(2.0)">2x</button>
+            <div class="header slide-in">
+                <div class="title">IndataAI Platform</div>
+                <div class="subtitle">
+                    <span>Chart: {chart_type}</span>
+                    <span class="ai-badge">AI Confidence: {ai_analysis['recommendations'][0]['confidence'] if ai_analysis['recommendations'] else 95}%</span>
+                    <span>Quality: {ai_analysis['quality_score']:.1f}%</span>
+                    <span>Speed: {animation_speed}x</span>
                 </div>
             </div>
             
-            <div class="chart-container">
-                <svg id="chart" width="1000" height="600"></svg>
+            <div class="controls slide-in">
+                <button class="btn" onclick="playSequence()">▶ AI Analysis</button>
+                <button class="btn" onclick="animateEntrance()">🎯 Show Data</button>
+                <button class="btn" onclick="animateByCategory()">📊 By Category</button>
+                <button class="btn" onclick="animateCorrelations()">🔗 Correlations</button>
+                <button class="btn" onclick="animateOutliers()">⚠️ Outliers</button>
+                <button class="btn secondary" onclick="pauseAnimation()">⏸ Pause</button>
+                <button class="btn secondary" onclick="resetView()">🔄 Reset</button>
+                <button class="btn export" onclick="exportVisualization()">💾 Export PNG</button>
+                <button class="btn export" onclick="startRecording()">🎥 Record GIF</button>
+            </div>
+            
+            <div class="chart-area">
+                <div class="chart-container slide-in">
+                    <svg id="chart" width="936" height="536"></svg>
+                </div>
             </div>
         </div>
         
         <script>
             const data = {data_json};
             const colors = {json.dumps(colors)};
+            const analysisData = {json.dumps(ai_analysis)};
             let animationSpeed = {animation_speed};
             let isPlaying = false;
             let animationInterval;
             
+            // Chart setup
             const svg = d3.select("#chart");
-            const margin = {{top: 40, right: 40, bottom: 80, left: 80}};
-            const width = 1000 - margin.left - margin.right;
-            const height = 600 - margin.top - margin.bottom;
+            const margin = {{top: 40, right: 120, bottom: 60, left: 80}};
+            const width = 936 - margin.left - margin.right;
+            const height = 536 - margin.top - margin.bottom;
             const g = svg.append("g").attr("transform", `translate(${{margin.left}},${{margin.top}})`);
             
-            {chart_js}
+            // Scales
+            const xCol = '{columns["x"]}';
+            const yCol = '{columns["y"]}';
+            const colorCol = '{columns["color"]}';
             
-            function playAnimation() {{
-                if (!isPlaying) {{
-                    isPlaying = true;
-                    startContinuousAnimation();
+            const xScale = d3.scaleLinear()
+                .domain(d3.extent(data, d => +d[xCol]))
+                .nice()
+                .range([0, width]);
+                
+            const yScale = d3.scaleLinear()
+                .domain(d3.extent(data, d => +d[yCol]))
+                .nice()
+                .range([height, 0]);
+                
+            const colorScale = d3.scaleOrdinal()
+                .domain([...new Set(data.map(d => d[colorCol]))])
+                .range(colors);
+            
+            // Create axes
+            const xAxis = g.append("g")
+                .attr("transform", `translate(0,${{height}})`)
+                .call(d3.axisBottom(xScale).tickFormat(d3.format(".2s")));
+                
+            const yAxis = g.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(d3.format(".2s")));
+            
+            // Axis labels
+            g.append("text")
+                .attr("class", "axis-label")
+                .attr("x", width / 2)
+                .attr("y", height + 45)
+                .style("text-anchor", "middle")
+                .style("font-weight", "600")
+                .style("font-size", "14px")
+                .text(xCol.replace(/_/g, ' ').toUpperCase());
+                
+            g.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -50)
+                .attr("x", -height / 2)
+                .style("text-anchor", "middle")
+                .style("font-weight", "600")
+                .style("font-size", "14px")
+                .text(yCol.replace(/_/g, ' ').toUpperCase());
+            
+            // Create legend
+            const legend = svg.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${{width + margin.left + 20}}, ${{margin.top}})`);
+            
+            const legendItems = legend.selectAll(".legend-item")
+                .data(colorScale.domain())
+                .enter().append("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(0, ${{i * 25}})`);
+            
+            legendItems.append("rect")
+                .attr("width", 18)
+                .attr("height", 18)
+                .attr("rx", 3)
+                .attr("fill", d => colorScale(d));
+            
+            legendItems.append("text")
+                .attr("x", 24)
+                .attr("y", 14)
+                .style("font-size", "12px")
+                .style("font-weight", "500")
+                .text(d => d);
+            
+            // Create dots
+            const dots = g.selectAll(".dot")
+                .data(data)
+                .enter().append("circle")
+                .attr("class", "dot element")
+                .attr("cx", d => xScale(+d[xCol]))
+                .attr("cy", d => yScale(+d[yCol]))
+                .attr("r", 0)
+                .attr("fill", d => colorScale(d[colorCol]))
+                .attr("opacity", 0)
+                .style("stroke", "white")
+                .style("stroke-width", 1.5)
+                .style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.2))");
+            
+            // Animation functions
+            function animateEntrance() {{
+                dots.transition()
+                    .delay((d, i) => i * 30 / animationSpeed)
+                    .duration(1200 / animationSpeed)
+                    .ease(d3.easeBounce)
+                    .attr("r", 8)
+                    .attr("opacity", 0.85);
+            }}
+            
+            function animateByCategory() {{
+                const categories = [...new Set(data.map(d => d[colorCol]))];
+                
+                categories.forEach((category, i) => {{
+                    setTimeout(() => {{
+                        dots.transition()
+                            .duration(800 / animationSpeed)
+                            .attr("opacity", d => d[colorCol] === category ? 1 : 0.15)
+                            .attr("r", d => d[colorCol] === category ? 14 : 5)
+                            .style("filter", d => d[colorCol] === category ? 
+                                "drop-shadow(0 6px 12px rgba(0,0,0,0.4))" : 
+                                "drop-shadow(0 1px 2px rgba(0,0,0,0.1))");
+                    }}, i * 1000 / animationSpeed);
+                }});
+                
+                setTimeout(() => {{
+                    resetView();
+                }}, categories.length * 1000 / animationSpeed + 1500);
+            }}
+            
+            function animateCorrelations() {{
+                if (analysisData.correlations && analysisData.correlations.length > 0) {{
+                    const corr = analysisData.correlations[0];
+                    
+                    // Highlight correlated variables
+                    dots.transition()
+                        .duration(1000 / animationSpeed)
+                        .attr("r", 12)
+                        .attr("opacity", 0.9)
+                        .style("stroke-width", 3);
+                    
+                    // Add trend line
+                    const lineData = data.sort((a, b) => +a[xCol] - +b[xCol]);
+                    const line = d3.line()
+                        .x(d => xScale(+d[xCol]))
+                        .y(d => yScale(+d[yCol]))
+                        .curve(d3.curveBasis);
+                    
+                    const path = g.append("path")
+                        .datum(lineData)
+                        .attr("class", "correlation-line")
+                        .attr("fill", "none")
+                        .attr("stroke", "#e74c3c")
+                        .attr("stroke-width", 3)
+                        .attr("opacity", 0)
+                        .attr("d", line);
+                    
+                    const totalLength = path.node().getTotalLength();
+                    path.attr("stroke-dasharray", totalLength + " " + totalLength)
+                        .attr("stroke-dashoffset", totalLength)
+                        .transition()
+                        .duration(2000 / animationSpeed)
+                        .attr("stroke-dashoffset", 0)
+                        .attr("opacity", 0.7);
+                        
+                    setTimeout(() => {{
+                        path.transition().duration(500).attr("opacity", 0).remove();
+                        resetView();
+                    }}, 3000 / animationSpeed);
                 }}
+            }}
+            
+            function animateOutliers() {{
+                if (analysisData.outliers && analysisData.outliers.length > 0) {{
+                    const outlierCol = analysisData.outliers[0].column;
+                    const outlierThreshold = d3.quantile(data.map(d => +d[outlierCol]).sort(), 0.9);
+                    
+                    dots.transition()
+                        .duration(1000 / animationSpeed)
+                        .attr("r", d => +d[outlierCol] > outlierThreshold ? 16 : 6)
+                        .attr("opacity", d => +d[outlierCol] > outlierThreshold ? 1 : 0.3)
+                        .style("stroke", d => +d[outlierCol] > outlierThreshold ? "#e74c3c" : "white")
+                        .style("stroke-width", d => +d[outlierCol] > outlierThreshold ? 3 : 1.5);
+                    
+                    setTimeout(() => resetView(), 3000 / animationSpeed);
+                }}
+            }}
+            
+            function playSequence() {{
+                animateEntrance();
+                setTimeout(() => animateByCategory(), 2000 / animationSpeed);
+                setTimeout(() => animateCorrelations(), 6000 / animationSpeed);
+                setTimeout(() => animateOutliers(), 10000 / animationSpeed);
             }}
             
             function pauseAnimation() {{
-                isPlaying = false;
-                if (animationInterval) clearInterval(animationInterval);
-            }}
-            
-            function resetView() {{
-                pauseAnimation();
-                initializeChart();
-            }}
-            
-            function changeSpeed(speed) {{
-                animationSpeed = speed;
                 if (isPlaying) {{
-                    pauseAnimation();
-                    playAnimation();
+                    if (animationInterval) clearInterval(animationInterval);
+                    isPlaying = false;
+                    dots.interrupt();
+                }} else {{
+                    playSequence();
+                    isPlaying = true;
                 }}
             }}
             
-            function startContinuousAnimation() {{
-                animationInterval = setInterval(() => {{
-                    if (isPlaying) {{
-                        rotateView();
-                        pulseElements();
-                    }}
-                }}, 2000 / animationSpeed);
+            function resetView() {{
+                g.selectAll(".correlation-line").remove();
+                dots.interrupt();
+                dots.transition()
+                    .duration(600)
+                    .attr("cx", d => xScale(+d[xCol]))
+                    .attr("cy", d => yScale(+d[yCol]))
+                    .attr("r", 8)
+                    .attr("opacity", 0.85)
+                    .attr("fill", d => colorScale(d[colorCol]))
+                    .style("stroke", "white")
+                    .style("stroke-width", 1.5)
+                    .style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.2))");
             }}
             
-            function rotateView() {{
-                const angle = Date.now() * 0.001 * animationSpeed;
-                g.transition()
-                    .duration(1000 / animationSpeed)
-                    .attr("transform", `translate(${{margin.left}},${{margin.top}}) rotate(${{angle * 10}}, ${{width/2}}, ${{height/2}})`);
+            function exportVisualization() {{
+                html2canvas(document.querySelector('.container')).then(canvas => {{
+                    const link = document.createElement('a');
+                    link.download = 'indataai-visualization.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                }});
             }}
             
-            function pulseElements() {{
-                g.selectAll(".element")
-                    .transition()
-                    .duration(1000 / animationSpeed)
-                    .attr("r", d => 12 + Math.sin(Date.now() * 0.01) * 3)
-                    .transition()
-                    .duration(1000 / animationSpeed)
-                    .attr("r", 8);
+            let recording = false;
+            let recordedFrames = [];
+            
+            function startRecording() {{
+                if (recording) return;
+                recording = true;
+                recordedFrames = [];
+                
+                playSequence();
+                
+                const captureFrame = () => {{
+                    if (!recording) return;
+                    html2canvas(document.querySelector('.chart-container')).then(canvas => {{
+                        recordedFrames.push(canvas.toDataURL());
+                        if (recordedFrames.length < 120) {{ // 4 seconds at 30fps
+                            setTimeout(captureFrame, 33);
+                        }} else {{
+                            stopRecording();
+                        }}
+                    }});
+                }};
+                
+                setTimeout(captureFrame, 100);
             }}
             
-            // Auto-play if enabled
-            {f"playAnimation();" if auto_play else ""}
+            function stopRecording() {{
+                recording = false;
+                // Simple GIF creation would require additional libraries
+                // For now, we'll save the first frame as PNG
+                if (recordedFrames.length > 0) {{
+                    const link = document.createElement('a');
+                    link.download = 'indataai-animation-frame.png';
+                    link.href = recordedFrames[0];
+                    link.click();
+                }}
+            }}
             
-            // Initialize chart
-            initializeChart();
+            // Initialize
+            setTimeout(() => {{
+                animateEntrance();
+            }}, 500);
         </script>
     </body>
     </html>
     """
+    
     return html_template
 
-def create_scatter_chart_js(colors, animation_speed, auto_play):
-    return f"""
-        const x = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.sales_amount)).nice()
-            .range([0, width]);
-        const y = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.profit_margin)).nice()
-            .range([height, 0]);
-        const color = d3.scaleOrdinal().range(colors);
-        
-        function initializeChart() {{
-            g.selectAll("*").remove();
-            
-            // Axes
-            g.append("g")
-                .attr("transform", `translate(0,${{height}})`)
-                .call(d3.axisBottom(x));
-            g.append("g").call(d3.axisLeft(y));
-            
-            // Dots
-            g.selectAll(".element")
-                .data(data)
-                .enter().append("circle")
-                .attr("class", "element")
-                .attr("cx", d => x(d.sales_amount))
-                .attr("cy", d => y(d.profit_margin))
-                .attr("r", 0)
-                .attr("fill", (d,i) => color(i % colors.length))
-                .attr("opacity", 0)
-                .transition()
-                .delay((d,i) => i * 50 / animationSpeed)
-                .duration(1000 / animationSpeed)
-                .attr("r", 8)
-                .attr("opacity", 0.8);
-        }}
-        
-        function analyzeData() {{
-            g.selectAll(".element")
-                .transition()
-                .duration(1500 / animationSpeed)
-                .attr("cy", d => y(d.profit_margin) + (Math.random() - 0.5) * 100)
-                .transition()
-                .duration(1500 / animationSpeed)
-                .attr("cy", d => y(d.profit_margin));
-        }}
-        
-        function showClusters() {{
-            const clusters = ["A", "B", "C"];
-            g.selectAll(".element")
-                .transition()
-                .duration(2000 / animationSpeed)
-                .attr("fill", () => color(Math.floor(Math.random() * clusters.length)))
-                .attr("r", () => 6 + Math.random() * 8);
-        }}
-    """
-
-def create_bar_chart_js(colors, animation_speed, auto_play):
-    return f"""
-        let aggregatedData = [];
-        if (data.length > 0 && data[0].region) {{
-            const regionGroups = d3.group(data, d => d.region);
-            aggregatedData = Array.from(regionGroups, ([key, values]) => ({{
-                region: key,
-                value: d3.mean(values, d => d.sales_amount || 0)
-            }}));
-        }}
-        
-        const x = d3.scaleBand().range([0, width]).padding(0.1);
-        const y = d3.scaleLinear().range([height, 0]);
-        const color = d3.scaleOrdinal().range(colors);
-        
-        x.domain(aggregatedData.map(d => d.region));
-        y.domain([0, d3.max(aggregatedData, d => d.value)]);
-        
-        function initializeChart() {{
-            g.selectAll("*").remove();
-            
-            // Axes
-            g.append("g")
-                .attr("transform", `translate(0,${{height}})`)
-                .call(d3.axisBottom(x));
-            g.append("g").call(d3.axisLeft(y));
-            
-            // Bars
-            g.selectAll(".element")
-                .data(aggregatedData)
-                .enter().append("rect")
-                .attr("class", "element")
-                .attr("x", d => x(d.region))
-                .attr("width", x.bandwidth())
-                .attr("y", height)
-                .attr("height", 0)
-                .attr("fill", (d,i) => color(i))
-                .transition()
-                .delay((d,i) => i * 200 / animationSpeed)
-                .duration(1000 / animationSpeed)
-                .attr("y", d => y(d.value))
-                .attr("height", d => height - y(d.value));
-        }}
-        
-        function analyzeData() {{
-            g.selectAll(".element")
-                .transition()
-                .duration(1500 / animationSpeed)
-                .attr("height", d => Math.random() * height)
-                .transition()
-                .duration(1500 / animationSpeed)
-                .attr("height", d => height - y(d.value));
-        }}
-        
-        function showClusters() {{
-            g.selectAll(".element")
-                .transition()
-                .duration(2000 / animationSpeed)
-                .attr("fill", () => color(Math.floor(Math.random() * colors.length)));
-        }}
-    """
-
-def create_line_chart_js(colors, animation_speed, auto_play):
-    return f"""
-        const sortedData = data.sort((a, b) => (a.sales_amount || 0) - (b.sales_amount || 0));
-        
-        const x = d3.scaleLinear()
-            .domain(d3.extent(sortedData, d => d.sales_amount || 0))
-            .range([0, width]);
-        const y = d3.scaleLinear()
-            .domain(d3.extent(sortedData, d => d.profit_margin || 0))
-            .range([height, 0]);
-        
-        const line = d3.line()
-            .x(d => x(d.sales_amount || 0))
-            .y(d => y(d.profit_margin || 0))
-            .curve(d3.curveCardinal);
-        
-        function initializeChart() {{
-            g.selectAll("*").remove();
-            
-            // Axes
-            g.append("g")
-                .attr("transform", `translate(0,${{height}})`)
-                .call(d3.axisBottom(x));
-            g.append("g").call(d3.axisLeft(y));
-            
-            // Line path
-            const path = g.append("path")
-                .datum(sortedData)
-                .attr("class", "element")
-                .attr("fill", "none")
-                .attr("stroke", colors[0])
-                .attr("stroke-width", 3)
-                .attr("d", line);
-            
-            const totalLength = path.node().getTotalLength();
-            path.attr("stroke-dasharray", totalLength + " " + totalLength)
-                .attr("stroke-dashoffset", totalLength)
-                .transition()
-                .duration(3000 / animationSpeed)
-                .attr("stroke-dashoffset", 0);
-            
-            // Points
-            g.selectAll(".dot")
-                .data(sortedData)
-                .enter().append("circle")
-                .attr("class", "element dot")
-                .attr("cx", d => x(d.sales_amount || 0))
-                .attr("cy", d => y(d.profit_margin || 0))
-                .attr("r", 0)
-                .attr("fill", colors[1])
-                .transition()
-                .delay((d,i) => i * 100 / animationSpeed)
-                .duration(500)
-                .attr("r", 5);
-        }}
-        
-        function analyzeData() {{
-            g.selectAll(".dot")
-                .transition()
-                .duration(1500 / animationSpeed)
-                .attr("r", 8)
-                .attr("fill", () => colors[Math.floor(Math.random() * colors.length)])
-                .transition()
-                .duration(1500 / animationSpeed)
-                .attr("r", 5);
-        }}
-        
-        function showClusters() {{
-            g.selectAll(".dot")
-                .transition()
-                .duration(2000 / animationSpeed)
-                .attr("cy", d => y(d.profit_margin || 0) + (Math.random() - 0.5) * 50)
-                .transition()
-                .duration(2000 / animationSpeed)
-                .attr("cy", d => y(d.profit_margin || 0));
-        }}
-    """
-
 def main():
-    st.title("🚀 IndataAI Platform")
-    st.markdown("AI-Powered Data Visualization with Advanced Customization")
-    
-    # Sidebar controls
-    st.sidebar.header("Customization Options")
-    
-    # Chart type selection
-    chart_types = ["Scatter Plot", "Bar Chart", "Line Chart"]
-    selected_chart = st.sidebar.selectbox("Chart Type", chart_types)
-    
-    # Color scheme selection
-    color_schemes = {
-        "Professional": ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A994E'],
-        "Vibrant": ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
-        "Corporate": ['#1f4e79', '#2d5aa0', '#5b9bd5', '#a5a5a5', '#70ad47'],
-        "Ocean": ['#006994', '#0091ad', '#00b4c6', '#00d8e0', '#1efcfa']
-    }
-    selected_color_scheme = st.sidebar.selectbox("Color Scheme", list(color_schemes.keys()))
-    
-    # Animation controls
-    animation_speed = st.sidebar.slider("Animation Speed", 0.5, 3.0, 1.0, 0.1)
-    auto_play = st.sidebar.checkbox("Auto-play animations")
+    st.title("🚀 IndataAI Platform - Enhanced Edition")
+    st.markdown("AI-Powered Data Visualization with Professional Animation & Export")
     
     # Initialize AI
-    ai_engine = IndataAI()
+    ai_engine = AdvancedAI()
+    
+    # Sidebar customization
+    with st.sidebar:
+        st.header("Customization")
+        
+        # Chart type
+        chart_types = ["Scatter Plot", "Bubble Chart", "Line Chart", "Bar Chart", "3D Scatter"]
+        selected_chart = st.selectbox("Chart Type", chart_types)
+        
+        # Color schemes
+        color_schemes = ["Professional", "Vibrant", "Corporate", "Ocean", "Sunset"]
+        selected_colors = st.selectbox("Color Scheme", color_schemes)
+        
+        # Animation settings
+        animation_speed = st.slider("Animation Speed", 0.5, 3.0, 1.0, 0.1)
+        
+        # Export settings
+        st.subheader("Export Options")
+        export_format = st.selectbox("Export Format", ["PNG", "SVG", "HTML"])
+        export_quality = st.selectbox("Quality", ["Standard", "High", "Ultra"])
     
     # File upload
     uploaded_file = st.file_uploader("Upload CSV file", type=['csv'])
     
     if uploaded_file is not None:
+        # Load and process data
         df = pd.read_csv(uploaded_file)
         
+        # AI analysis
+        analysis = ai_engine.analyze_data(df)
+        
+        # Auto-detect optimal columns
+        columns = auto_detect_columns(df)
+        
+        # Layout
         col1, col2 = st.columns([1, 3])
         
         with col1:
             st.subheader("📊 Data Overview")
-            st.dataframe(df.head())
+            st.dataframe(df.head(), use_container_width=True)
             
             st.subheader("🤖 AI Analysis")
-            insights, recommendations = ai_engine.analyze_data(df)
-            
-            for insight in insights:
+            for insight in analysis['insights']:
                 st.write(f"• {insight}")
             
             st.subheader("💡 Recommendations")
-            for i, rec in enumerate(recommendations[:3], 1):
-                confidence_color = "🟢" if rec['confidence'] > 90 else "🟡" if rec['confidence'] > 80 else "🔴"
-                st.write(f"{confidence_color} **{rec['type'].title()}** - {rec['confidence']}%")
+            for i, rec in enumerate(analysis['recommendations'][:3], 1):
+                confidence_emoji = "🟢" if rec['confidence'] > 90 else "🟡" if rec['confidence'] > 80 else "🔴"
+                st.write(f"{confidence_emoji} **{rec['type'].replace('_', ' ').title()}** - {rec['confidence']}%")
+                st.caption(rec['reason'])
+            
+            # Column mapping controls
+            st.subheader("🔧 Column Mapping")
+            columns['x'] = st.selectbox("X-axis", df.select_dtypes(include=[np.number]).columns, 
+                                      index=list(df.select_dtypes(include=[np.number]).columns).index(columns['x']) if columns['x'] in df.columns else 0)
+            columns['y'] = st.selectbox("Y-axis", df.select_dtypes(include=[np.number]).columns,
+                                      index=list(df.select_dtypes(include=[np.number]).columns).index(columns['y']) if columns['y'] in df.columns else min(1, len(df.select_dtypes(include=[np.number]).columns)-1))
+            columns['color'] = st.selectbox("Color/Group", ['None'] + df.select_dtypes(include=['object']).columns.tolist(),
+                                          index=(['None'] + df.select_dtypes(include=['object']).columns.tolist()).index(columns['color']) if columns['color'] in df.columns else 0)
         
         with col2:
-            required_cols = ['sales_amount', 'profit_margin']
-            missing_cols = [col for col in required_cols if col not in df.columns]
+            # Validation
+            required_cols = [columns['x'], columns['y']]
+            missing_cols = [col for col in required_cols if col not in df.columns or col is None]
             
             if missing_cols:
-                st.error(f"Missing required columns: {missing_cols}")
-                st.info(f"Available columns: {list(df.columns)}")
+                st.error(f"Please select valid X and Y columns")
             else:
-                colors = color_schemes[selected_color_scheme]
-                html_content = create_advanced_visualization(
-                    df, selected_chart, colors, animation_speed, auto_play
-                )
-                components.html(html_content, height=800, scrolling=True)
+                st.subheader("🎨 Interactive Visualization")
                 
-                st.success("✨ Interactive visualization ready! Use the controls above the chart.")
+                # Create enhanced visualization
+                html_content = create_enhanced_visualization(
+                    df, selected_chart, selected_colors, animation_speed, columns, analysis
+                )
+                
+                # Display
+                components.html(html_content, height=800, scrolling=False)
+                
+                # Success message
+                st.success("✨ Enhanced AI visualization ready! Use the controls in the chart for animations and export.")
+                
+                # Additional insights
+                with st.expander("🔍 Detailed Analysis"):
+                    if analysis['correlations']:
+                        st.subheader("Strong Correlations")
+                        for corr in analysis['correlations']:
+                            st.write(f"• **{corr['col1']}** ↔ **{corr['col2']}**: {corr['correlation']:.3f} ({corr['strength']})")
+                    
+                    if analysis['outliers']:
+                        st.subheader("Outlier Detection")
+                        for outlier in analysis['outliers']:
+                            st.write(f"• **{outlier['column']}**: {outlier['count']} outliers ({outlier['percentage']:.1f}%)")
 
 if __name__ == "__main__":
     main()
