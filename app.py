@@ -133,19 +133,19 @@ def auto_detect_columns(df):
     }
 
 def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed, columns, ai_analysis):
-    """Enhanced visualization with better animations and export capabilities"""
+    """Enhanced visualization with clean white background and flat buttons"""
     
     # Prepare data
     data_sample = df.head(min(500, len(df)))  # Limit for performance
     data_json = data_sample.to_json(orient="records")
     
-    # Color schemes
+    # Enhanced color schemes with more colors
     color_schemes = {
-        'Professional': ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A994E'],
-        'Vibrant': ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
-        'Corporate': ['#1f4e79', '#2d5aa0', '#5b9bd5', '#a5a5a5', '#70ad47'],
-        'Ocean': ['#006994', '#0091ad', '#00b4c6', '#00d8e0', '#1efcfa'],
-        'Sunset': ['#ff7b7b', '#ff9f43', '#feca57', '#48dbfb', '#0abde3']
+        'Professional': ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'],
+        'Vibrant': ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#fd79a8', '#6c5ce7', '#00b894', '#fdcb6e', '#a29bfe'],
+        'Corporate': ['#1f4e79', '#2d5aa0', '#5b9bd5', '#70ad47', '#ffc000', '#c5504b', '#70ad47', '#7030a0', '#ff9900', '#375623'],
+        'Ocean': ['#006994', '#0091ad', '#00b4c6', '#00d8e0', '#1efcfa', '#74b9ff', '#0984e3', '#00cec9', '#55a3ff', '#3742fa'],
+        'Sunset': ['#ff7675', '#fd79a8', '#fdcb6e', '#e17055', '#74b9ff', '#a29bfe', '#6c5ce7', '#00b894', '#00cec9', '#55a3ff']
     }
     
     colors = color_schemes.get(color_scheme, color_schemes['Professional'])
@@ -160,19 +160,19 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
         <style>
             body {{
                 font-family: 'Inter', -apple-system, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: #ffffff;
                 margin: 0; padding: 0; overflow: hidden;
             }}
             .container {{
                 width: 100vw; height: 100vh;
                 display: flex; flex-direction: column;
+                background: #ffffff;
             }}
             .header {{
-                background: rgba(255,255,255,0.95);
-                backdrop-filter: blur(10px);
+                background: #ffffff;
                 padding: 16px 24px;
-                border-bottom: 1px solid rgba(255,255,255,0.2);
-                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                border-bottom: 1px solid #e5e7eb;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             }}
             .title {{
                 font-size: 28px; font-weight: 700; color: #2c3e50;
@@ -183,46 +183,52 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
                 display: flex; gap: 24px; align-items: center;
             }}
             .ai-badge {{
-                background: linear-gradient(135deg, #00B59C 0%, #00A085 100%);
+                background: #10b981;
                 color: white; padding: 4px 12px; border-radius: 12px;
                 font-size: 12px; font-weight: 600;
             }}
             .controls {{
-                background: rgba(255,255,255,0.9);
-                backdrop-filter: blur(10px);
+                background: #ffffff;
                 padding: 16px 24px;
                 display: flex; gap: 12px; align-items: center;
-                border-bottom: 1px solid rgba(255,255,255,0.2);
+                border-bottom: 1px solid #e5e7eb;
                 flex-wrap: wrap;
             }}
             .btn {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: #667eea;
                 color: white; border: none; padding: 10px 20px;
                 border-radius: 8px; cursor: pointer; font-weight: 600;
                 transition: all 0.3s ease; font-size: 14px;
-                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+                box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
             }}
             .btn:hover {{
-                transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+                background: #5a67d8;
+                transform: translateY(-1px);
             }}
             .btn.secondary {{
-                background: rgba(255,255,255,0.2);
-                color: #667eea; border: 1px solid rgba(102, 126, 234, 0.3);
+                background: #6b7280;
+                color: white;
+            }}
+            .btn.secondary:hover {{
+                background: #4b5563;
             }}
             .btn.export {{
-                background: linear-gradient(135deg, #00B59C 0%, #00A085 100%);
+                background: #10b981;
+            }}
+            .btn.export:hover {{
+                background: #059669;
             }}
             .chart-area {{
-                flex: 1; padding: 24px;
+                flex: 1; padding: 20px;
                 display: flex; justify-content: center; align-items: center;
+                background: #ffffff;
             }}
             .chart-container {{
-                background: rgba(255,255,255,0.95);
-                backdrop-filter: blur(10px);
-                border-radius: 16px; padding: 32px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-                width: 100%; max-width: 1000px; height: 600px;
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px; padding: 15px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+                width: 100%; height: 600px;
             }}
             .element {{
                 transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
@@ -230,7 +236,6 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
             }}
             .element:hover {{
                 transform: scale(1.1);
-                filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
             }}
             .trail {{
                 opacity: 0.6;
@@ -280,7 +285,7 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
             
             <div class="chart-area">
                 <div class="chart-container slide-in">
-                    <svg id="chart" width="936" height="536"></svg>
+                    <svg id="chart" width="100%" height="570" viewBox="0 0 1000 570"></svg>
                 </div>
             </div>
         </div>
@@ -293,11 +298,12 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
             let isPlaying = false;
             let animationInterval;
             
-            // Chart setup
+            // Chart setup with full width
             const svg = d3.select("#chart");
-            const margin = {{top: 40, right: 120, bottom: 60, left: 80}};
-            const width = 936 - margin.left - margin.right;
-            const height = 536 - margin.top - margin.bottom;
+            const containerWidth = 1000;
+            const margin = {{top: 40, right: 140, bottom: 60, left: 80}};
+            const width = containerWidth - margin.left - margin.right;
+            const height = 570 - margin.top - margin.bottom;
             const g = svg.append("g").attr("transform", `translate(${{margin.left}},${{margin.top}})`);
             
             // Scales
@@ -371,7 +377,7 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
                 .style("font-weight", "500")
                 .text(d => d);
             
-            // Create dots
+            // Create dots without outlines
             const dots = g.selectAll(".dot")
                 .data(data)
                 .enter().append("circle")
@@ -380,10 +386,7 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
                 .attr("cy", d => yScale(+d[yCol]))
                 .attr("r", 0)
                 .attr("fill", d => colorScale(d[colorCol]))
-                .attr("opacity", 0)
-                .style("stroke", "white")
-                .style("stroke-width", 1.5)
-                .style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.2))");
+                .attr("opacity", 0);
             
             // Animation functions
             function animateEntrance() {{
@@ -403,10 +406,7 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
                         dots.transition()
                             .duration(800 / animationSpeed)
                             .attr("opacity", d => d[colorCol] === category ? 1 : 0.15)
-                            .attr("r", d => d[colorCol] === category ? 14 : 5)
-                            .style("filter", d => d[colorCol] === category ? 
-                                "drop-shadow(0 6px 12px rgba(0,0,0,0.4))" : 
-                                "drop-shadow(0 1px 2px rgba(0,0,0,0.1))");
+                            .attr("r", d => d[colorCol] === category ? 14 : 5);
                     }}, i * 1000 / animationSpeed);
                 }});
                 
@@ -423,8 +423,7 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
                     dots.transition()
                         .duration(1000 / animationSpeed)
                         .attr("r", 12)
-                        .attr("opacity", 0.9)
-                        .style("stroke-width", 3);
+                        .attr("opacity", 0.9);
                     
                     // Add trend line
                     const lineData = data.sort((a, b) => +a[xCol] - +b[xCol]);
@@ -437,7 +436,7 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
                         .datum(lineData)
                         .attr("class", "correlation-line")
                         .attr("fill", "none")
-                        .attr("stroke", "#e74c3c")
+                        .attr("stroke", "#ef4444")
                         .attr("stroke-width", 3)
                         .attr("opacity", 0)
                         .attr("d", line);
@@ -465,9 +464,7 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
                     dots.transition()
                         .duration(1000 / animationSpeed)
                         .attr("r", d => +d[outlierCol] > outlierThreshold ? 16 : 6)
-                        .attr("opacity", d => +d[outlierCol] > outlierThreshold ? 1 : 0.3)
-                        .style("stroke", d => +d[outlierCol] > outlierThreshold ? "#e74c3c" : "white")
-                        .style("stroke-width", d => +d[outlierCol] > outlierThreshold ? 3 : 1.5);
+                        .attr("opacity", d => +d[outlierCol] > outlierThreshold ? 1 : 0.3);
                     
                     setTimeout(() => resetView(), 3000 / animationSpeed);
                 }}
@@ -500,10 +497,7 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
                     .attr("cy", d => yScale(+d[yCol]))
                     .attr("r", 8)
                     .attr("opacity", 0.85)
-                    .attr("fill", d => colorScale(d[colorCol]))
-                    .style("stroke", "white")
-                    .style("stroke-width", 1.5)
-                    .style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.2))");
+                    .attr("fill", d => colorScale(d[colorCol]));
             }}
             
             function exportVisualization() {{
@@ -542,8 +536,6 @@ def create_enhanced_visualization(df, chart_type, color_scheme, animation_speed,
             
             function stopRecording() {{
                 recording = false;
-                // Simple GIF creation would require additional libraries
-                // For now, we'll save the first frame as PNG
                 if (recordedFrames.length > 0) {{
                     const link = document.createElement('a');
                     link.download = 'indataai-animation-frame.png';
