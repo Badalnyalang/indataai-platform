@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndataAI - Professional 3D Analytics Platform</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #6366f1;
+            --secondary: #8b5cf6;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --dark: #0f172a;
+            --darker: #020617;
+            --light-gray: #64748b;
+            --border: #334155;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--darker);
+            color: white;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "sidebar canvas controls"
+                "footer footer footer";
+            grid-template-columns: 300px 1fr 250px;
+            grid-template-rows: 60px 1fr 40px;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            grid-area: header;
+            background: var(--dark);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary);
+        }
+
+        .nav-btn.active {
+            background: var(--primary);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            grid-area: sidebar;
+            background: var(--dark);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Data Upload */
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+            opacity: 0.6;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .upload-subtext {
+            font-size: 12px;
+            color: var(--light-gray);
+        }
+
+        /* Dataset Info */
+        .dataset-info {
+            background: var(--glass);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .dataset-name {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--accent);
+        }
+
+        .dataset-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--light-gray);
+            margin-top: 2px;
+        }
+
+        /* Theme Selection */
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .theme-color {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .theme-color.active {
+            border-color: white;
+            transform: scale(1.1);
+        }
+
+        .theme-color.neon { background: #6366f1; }
+        .theme-color.cyber { background: #00f5ff; }
+        .theme-color.ocean { background: #0077be; }
+        .theme-color.sunset { background: #ff6b35; }
+        .theme-color.forest { background: #10b981; }
+        .theme-color.monochrome { background: #ffffff; }
+
+        /* Chart Types */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .chart-btn {
+            padding: 12px 8px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .chart-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .chart-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* Main Canvas */
+        .canvas-container {
+            grid-area: canvas;
+            position: relative;
+            background: var(--darker);
+        }
+
+        #main-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Data Labels Overlay */
+        .data-labels {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .data-label {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid var(--primary);
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .data-label.visible {
+            opacity: 1;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            border: 1px solid var(--accent);
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            grid-area: controls;
+            background: var(--dark);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        .control-group {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .control-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-item {
+            margin-bottom: 12px;
+        }
+
+        .control-label {
+            font-size: 11px;
+            color: var(--light-gray);
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--border);
+            outline: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+
+        .toggle-switch {
+            width: 40px;
+            height: 20px;
+            background: var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: var(--success);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* AI Insights */
+        .insights-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .insight-item {
+            background: var(--glass);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .insight-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .insight-desc {
+            font-size: 11px;
+            color: var(--light-gray);
+            line-height: 1.4;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: var(--success);
+            border-radius: 2px;
+            transition: width 1s ease;
+        }
+
+        /* Footer */
+        .footer {
+            grid-area: footer;
+            background: var(--dark);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            font-size: 12px;
+            color: var(--light-gray);
+        }
+
+        .performance-stats {
+            display: flex;
+            gap: 16px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-content {
+            background: var(--dark);
+            padding: 32px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">IndataAI Platform</div>
+            <nav class="header-nav">
+                <button class="nav-btn active">Visualize</button>
+                <button class="nav-btn">Analytics</button>
+                <button class="nav-btn">Export</button>
+                <button class="nav-btn">Settings</button>
+            </nav>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Data Upload -->
+            <div class="sidebar-section">
+                <h3 class="section-title">Data Source</h3>
+                <div class="upload-area" 
+                     ondrop="handleDrop(event)" 
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" accept=".csv,.json,.xlsx" style="display: none;" onchange="handleFileUpload(event)">
+                    <div class="upload-icon">📊</div>
+                    <div class="upload-text">Upload Dataset</div>
+                    <div class="upload-subtext">CSV, JSON, Excel</div>
+                </div>
+
+                <div class="dataset-info" id="datasetInfo">
+                    <div class="dataset-name" id="datasetName">Sample Dataset</div>
+                    <div class="dataset-stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="pointCount">2,847</div>
+                            <div class="stat-label">Points</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="dimensionCount">3D</div>
+                            <div class="stat-label">Dimensions</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="clusterCount">5</div>
+                            <div class="stat-label">Clusters</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="qualityScore">97%</div>
+                            <div class="stat-label">Quality</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualization Type -->
+            <div class="sidebar-section">
+                <h3 class="section-title">Visualization</h3>
+                <div class="chart-grid">
+                    <button class="chart-btn active" onclick="setChart('particles')">✨ Particles</button>
+                    <button class="chart-btn" onclick="setChart('hologram')">🔮 Hologram</button>
+                    <button class="chart-btn" onclick="setChart('quantum')">⚛️ Quantum</button>
+                    <button class="chart-btn" onclick="setChart('neural')">🧠 Neural</button>
+                    <button class="chart-btn" onclick="setChart('crystalline')">💎 Crystal</button>
+                    <button class="chart-btn" onclick="setChart('plasma')">⚡ Plasma</button>
+                </div>
+            </div>
+
+            <!-- Color Themes -->
+            <div class="sidebar-section">
+                <h3 class="section-title">Theme</h3>
+                <div class="theme-grid">
+                    <div class="theme-color neon active" onclick="setTheme('neon')" title="Neon"></div>
+                    <div class="theme-color cyber" onclick="setTheme('cyber')" title="Cyber"></div>
+                    <div class="theme-color ocean" onclick="setTheme('ocean')" title="Ocean"></div>
+                    <div class="theme-color sunset" onclick="setTheme('sunset')" title="Sunset"></div>
+                    <div class="theme-color forest" onclick="setTheme('forest')" title="Forest"></div>
+                    <div class="theme-color monochrome" onclick="setTheme('monochrome')" title="Mono"></div>
+                </div>
+            </div>
+
+            <!-- AI Insights -->
+            <div class="sidebar-section">
+                <h3 class="section-title">AI Insights</h3>
+                <div class="insights-list">
+                    <div class="insight-item">
+                        <div class="insight-title">Data Quality</div>
+                        <div class="insight-desc">Excellent data integrity with minimal outliers detected</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: 97%"></div>
+                        </div>
+                    </div>
+                    <div class="insight-item">
+                        <div class="insight-title">Pattern Recognition</div>
+                        <div class="insight-desc">5 distinct clusters identified with strong correlations</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: 91%"></div>
+                        </div>
+                    </div>
+                    <div class="insight-item">
+                        <div class="insight-title">Anomaly Detection</div>
+                        <div class="insight-desc">3 outliers found, likely data entry errors</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: 85%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Canvas -->
+        <main class="canvas-container">
+            <div id="main-canvas"></div>
+            <div class="data-labels" id="dataLabels"></div>
+            <div class="tooltip" id="tooltip"></div>
+        </main>
+
+        <!-- Controls Panel -->
+        <aside class="controls-panel">
+            <!-- Display Options -->
+            <div class="control-group">
+                <h4 class="control-title">Display</h4>
+                <div class="control-item">
+                    <div class="control-row">
+                        <label class="control-label">Show Labels</label>
+                        <div class="toggle-switch active" onclick="toggleLabels()" id="labelsToggle"></div>
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-row">
+                        <label class="control-label">Show Axes</label>
+                        <div class="toggle-switch active" onclick="toggleAxes()" id="axesToggle"></div>
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-row">
+                        <label class="control-label">Show Grid</label>
+                        <div class="toggle-switch" onclick="toggleGrid()" id="gridToggle"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Animation Controls -->
+            <div class="control-group">
+                <h4 class="control-title">Animation</h4>
+                <div class="control-item">
+                    <div class="control-row">
+                        <label class="control-label">Auto Rotate</label>
+                        <div class="toggle-switch active" onclick="toggleAutoRotate()" id="autoRotateToggle"></div>
+                    </div>
+                </div>
+                <div class="control-item">
+                    <label class="control-label">Speed</label>
+                    <input type="range" class="slider" min="0.1" max="3" step="0.1" value="1" id="speedSlider" oninput="updateAnimationSpeed(this.value)">
+                </div>
+                <div class="control-item">
+                    <label class="control-label">Intensity</label>
+                    <input type="range" class="slider" min="0.1" max="2" step="0.1" value="1" id="intensitySlider" oninput="updateAnimationIntensity(this.value)">
+                </div>
+            </div>
+
+            <!-- View Controls -->
+            <div class="control-group">
+                <h4 class="control-title">Camera</h4>
+                <div class="control-item">
+                    <label class="control-label">Zoom</label>
+                    <input type="range" class="slider" min="5" max="50" value="25" id="zoomSlider" oninput="updateZoom(this.value)">
+                </div>
+                <div class="control-item">
+                    <button class="nav-btn" onclick="resetCamera()" style="width: 100%;">Reset View</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="performance-stats">
+                <span>FPS: <span id="fpsCounter">60</span></span>
+                <span>Objects: <span id="objectCount">0</span></span>
+                <span>Memory: <span id="memoryUsage">1.2GB</span></span>
+            </div>
+            <div>IndataAI Platform v1.0</div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div>Processing your data...</div>
+            <div style="font-size: 11px; color: var(--light-gray); margin-top: 8px;">AI analysis in progress</div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer;
+        let currentChart = 'particles';
+        let currentTheme = 'neon';
+        let animationSpeed = 1;
+        let animationIntensity = 1;
+        let autoRotate = true;
+        let showAxes = true;
+        let showLabels = true;
+        let showGrid = false;
+        let dataPoints = [];
+        let animationId;
+        let frameCount = 0;
+        let lastTime = 0;
+        let dataLabelsArray = [];
+        let mouse = new THREE.Vector2();
+        let raycaster = new THREE.Raycaster();
+        let hoveredObject = null;
+
+        // Theme configurations
+        const themes = {
+            neon: { primary: 0x6366f1, secondary: 0x8b5cf6, accent: 0x3a86ff },
+            cyber: { primary: 0x00f5ff, secondary: 0xff073a, accent: 0xffbd00 },
+            ocean: { primary: 0x0077be, secondary: 0x00a8cc, accent: 0x00c9a7 },
+            sunset: { primary: 0xff6b35, secondary: 0xf7931e, accent: 0xffd23f },
+            forest: { primary: 0x10b981, secondary: 0x059669, accent: 0x34d399 },
+            monochrome: { primary: 0xffffff, secondary: 0x9ca3af, accent: 0x6b7280 }
+        };
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020617);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(60, 
+                document.getElementById('main-canvas').clientWidth / 
+                document.getElementById('main-canvas').clientHeight, 0.1, 1000);
+            camera.position.set(20, 15, 20);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            const canvas = document.getElementById('main-canvas');
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            canvas.appendChild(renderer.domElement);
+
+            // Lighting
+            setupLighting();
+
+            // Generate sample data
+            generateSampleData();
+            
+            // Create initial visualization
+            createVisualization();
+
+            // Setup mouse controls
+            setupMouseControls();
+
+            // Start render loop
+            animate();
+
+            updateStats();
+        }
+
+        function setupLighting() {
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            const theme = themes[currentTheme];
+            const accentLight = new THREE.PointLight(theme.accent, 0.5, 100);
+            accentLight.position.set(20, 20, 20);
+            scene.add(accentLight);
+        }
+
+        function generateSampleData() {
+            dataPoints = [];
+            const clusters = [
+                { name: "Sales Team", center: [8, 5, 3], color: 0 },
+                { name: "Marketing", center: [-5, 8, -2], color: 1 },
+                { name: "Engineering", center: [2, -6, 8], color: 2 },
+                { name: "Support", center: [-8, -3, -5], color: 3 },
+                { name: "Management", center: [0, 0, 0], color: 4 }
+            ];
+
+            clusters.forEach((cluster, clusterIndex) => {
+                const pointsInCluster = Math.floor(Math.random() * 100) + 50;
+                for (let i = 0; i < pointsInCluster; i++) {
+                    const x = cluster.center[0] + (Math.random() - 0.5) * 8;
+                    const y = cluster.center[1] + (Math.random() - 0.5) * 8;
+                    const z = cluster.center[2] + (Math.random() - 0.5) * 8;
+                    
+                    dataPoints.push({
+                        x: x,
+                        y: y,
+                        z: z,
+                        cluster: clusterIndex,
+                        clusterName: cluster.name,
+                        value: Math.random() * 100 + 10,
+                        label: `${cluster.name}_${i + 1}`,
+                        id: `point_${clusterIndex}_${i}`
+                    });
+                }
+            });
+        }
+
+        function createVisualization() {
+            // Clear existing objects
+            clearScene();
+            clearDataLabels();
+
+            switch(currentChart) {
+                case 'particles':
+                    createParticleSystem();
+                    break;
+                case 'hologram':
+                    createHologramVisualization();
+                    break;
+                case 'quantum':
+                    createQuantumVisualization();
+                    break;
+                case 'neural':
+                    createNeuralNetwork();
+                    break;
+                case 'crystalline':
+                    createCrystallineStructure();
+                    break;
+                case 'plasma':
+                    createPlasmaVisualization();
+                    break;
+            }
+
+            if (showAxes) createAxes();
+            if (showGrid) createGrid();
+            updateObjectCount();
+        }
+
+        function createParticleSystem() {
+            const theme = themes[currentTheme];
+            const colors = [theme.primary, theme.secondary, theme.accent, 0xff6b6b, 0x4ecdc4];
+
+            dataPoints.forEach((point, index) => {
+                const geometry = new THREE.SphereGeometry(0.3, 12, 12);
+                const material = new THREE.MeshPhongMaterial({
+                    color: colors[point.cluster % colors.length],
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(point.x, point.y, point.z);
+                sphere.userData = {
+                    originalPosition: { x: point.x, y: point.y, z: point.z },
+                    dataPoint: point,
+                    type: 'dataPoint'
+                };
+
+                scene.add(sphere);
+
+                // Create data label
+                if (showLabels && index < 50) { // Limit labels to prevent clutter
+                    createDataLabel(point, sphere);
+                }
+            });
+        }
+
+        function createDataLabel(dataPoint, meshObject) {
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'data-label';
+            labelDiv.textContent = `${dataPoint.clusterName}: ${Math.round(dataPoint.value)}`;
+            labelDiv.style.backgroundColor = `#${themes[currentTheme].primary.toString(16)}22`;
+            labelDiv.style.borderColor = `#${themes[currentTheme].primary.toString(16)}`;
+            
+            document.getElementById('dataLabels').appendChild(labelDiv);
+            
+            dataLabelsArray.push({
+                element: labelDiv,
+                mesh: meshObject,
+                dataPoint: dataPoint
+            });
+        }
+
+        function updateDataLabels() {
+            if (!showLabels) {
+                dataLabelsArray.forEach(label => {
+                    label.element.style.opacity = '0';
+                });
+                return;
+            }
+
+            dataLabelsArray.forEach(label => {
+                const vector = new THREE.Vector3();
+                vector.setFromMatrixPosition(label.mesh.matrixWorld);
+                vector.project(camera);
+
+                const x = (vector.x * 0.5 + 0.5) * renderer.domElement.clientWidth;
+                const y = (vector.y * -0.5 + 0.5) * renderer.domElement.clientHeight;
+
+                label.element.style.left = x + 'px';
+                label.element.style.top = y + 'px';
+
+                // Show/hide based on distance from camera
+                const distance = camera.position.distanceTo(label.mesh.position);
+                if (distance < 30 && vector.z < 1) {
+                    label.element.classList.add('visible');
+                } else {
+                    label.element.classList.remove('visible');
+                }
+            });
+        }
+
+        function clearDataLabels() {
+            dataLabelsArray.forEach(label => {
+                if (label.element.parentNode) {
+                    label.element.parentNode.removeChild(label.element);
+                }
+            });
+            dataLabelsArray = [];
+        }
+
+        function createHologramVisualization() {
+            const theme = themes[currentTheme];
+            
+            dataPoints.forEach((point, index) => {
+                if (index % 8 !== 0) return; // Reduce density
+
+                const geometry = new THREE.CylinderGeometry(0.2, 0.8, point.value / 20, 8);
+                const material = new THREE.MeshPhongMaterial({
+                    color: theme.primary,
+                    transparent: true,
+                    opacity: 0.7
+                });
+
+                const cylinder = new THREE.Mesh(geometry, material);
+                cylinder.position.set(point.x, point.y, point.z);
+                cylinder.userData = {
+                    dataPoint: point,
+                    type: 'dataPoint',
+                    originalY: point.y
+                };
+
+                scene.add(cylinder);
+
+                if (showLabels && index < 30) {
+                    createDataLabel(point, cylinder);
+                }
+            });
+        }
+
+        function createQuantumVisualization() {
+            const theme = themes[currentTheme];
+            const group = new THREE.Group();
+
+            dataPoints.forEach((point, index) => {
+                if (index % 12 !== 0) return;
+
+                const geometry = new THREE.SphereGeometry(Math.random() * 0.5 + 0.3, 16, 16);
+                const material = new THREE.MeshPhongMaterial({
+                    color: theme.accent,
+                    transparent: true,
+                    opacity: 0.8,
+                    emissive: new THREE.Color(theme.primary).multiplyScalar(0.1)
+                });
+
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(point.x, point.y, point.z);
+                sphere.userData = {
+                    dataPoint: point,
+                    type: 'dataPoint',
+                    orbitalSpeed: Math.random() * 0.02 + 0.01
+                };
+
+                group.add(sphere);
+
+                if (showLabels && index < 20) {
+                    createDataLabel(point, sphere);
+                }
+            });
+
+            scene.add(group);
+        }
+
+        function createNeuralNetwork() {
+            const theme = themes[currentTheme];
+            const layers = 4;
+            const nodesPerLayer = 8;
+            const nodes = [];
+
+            // Create nodes with meaningful labels
+            for (let layer = 0; layer < layers; layer++) {
+                const layerNames = ['Input', 'Hidden 1', 'Hidden 2', 'Output'];
+                for (let node = 0; node < nodesPerLayer; node++) {
+                    const geometry = new THREE.SphereGeometry(0.4, 12, 12);
+                    const material = new THREE.MeshPhongMaterial({
+                        color: layer === 0 || layer === layers - 1 ? theme.primary : theme.accent,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+
+                    const sphere = new THREE.Mesh(geometry, material);
+                    const x = (layer - layers / 2) * 6;
+                    const y = (node - nodesPerLayer / 2) * 2;
+                    const z = 0;
+
+                    sphere.position.set(x, y, z);
+                    sphere.userData = {
+                        dataPoint: {
+                            clusterName: layerNames[layer],
+                            value: Math.random() * 100,
+                            label: `${layerNames[layer]}_${node + 1}`
+                        },
+                        type: 'dataPoint',
+                        layer: layer,
+                        node: node
+                    };
+
+                    nodes.push(sphere);
+                    scene.add(sphere);
+
+                    if (showLabels && (layer === 0 || layer === layers - 1)) {
+                        createDataLabel(sphere.userData.dataPoint, sphere);
+                    }
+                }
+            }
+
+            // Create connections
+            nodes.forEach((node, i) => {
+                nodes.forEach((targetNode, j) => {
+                    if (i !== j && 
+                        targetNode.userData.layer === node.userData.layer + 1 &&
+                        Math.random() < 0.6) {
+                        
+                        const distance = node.position.distanceTo(targetNode.position);
+                        const linkGeometry = new THREE.CylinderGeometry(0.02, 0.02, distance, 6);
+                        const linkMaterial = new THREE.MeshBasicMaterial({
+                            color: theme.secondary,
+                            transparent: true,
+                            opacity: 0.4
+                        });
+
+                        const link = new THREE.Mesh(linkGeometry, linkMaterial);
+                        link.position.copy(node.position).add(targetNode.position).divideScalar(2);
+                        link.lookAt(targetNode.position);
+                        link.rotateX(Math.PI / 2);
+
+                        scene.add(link);
+                    }
+                });
+            });
+        }
+
+        function createCrystallineStructure() {
+            const theme = themes[currentTheme];
+
+            dataPoints.forEach((point, index) => {
+                if (index % 15 !== 0) return;
+
+                const geometry = new THREE.OctahedronGeometry(point.value / 50 + 0.5);
+                const material = new THREE.MeshPhongMaterial({
+                    color: theme.primary,
+                    transparent: true,
+                    opacity: 0.7,
+                    wireframe: Math.random() < 0.3
+                });
+
+                const crystal = new THREE.Mesh(geometry, material);
+                crystal.position.set(point.x, point.y, point.z);
+                crystal.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+
+                crystal.userData = {
+                    dataPoint: point,
+                    type: 'dataPoint',
+                    rotationSpeed: {
+                        x: (Math.random() - 0.5) * 0.02,
+                        y: (Math.random() - 0.5) * 0.02,
+                        z: (Math.random() - 0.5) * 0.02
+                    }
+                };
+
+                scene.add(crystal);
+
+                if (showLabels && index < 25) {
+                    createDataLabel(point, crystal);
+                }
+            });
+        }
+
+        function createPlasmaVisualization() {
+            const theme = themes[currentTheme];
+            
+            // Create main plasma sphere
+            const geometry = new THREE.SphereGeometry(8, 32, 32);
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    color1: { value: new THREE.Color(theme.primary) },
+                    color2: { value: new THREE.Color(theme.accent) }
+                },
+                vertexShader: `
+                    uniform float time;
+                    varying vec3 vPosition;
+                    varying vec3 vNormal;
+                    
+                    void main() {
+                        vPosition = position;
+                        vNormal = normal;
+                        
+                        vec3 pos = position;
+                        pos += normal * sin(time * 2.0 + position.y * 0.1) * 0.3;
+                        
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform float time;
+                    uniform vec3 color1;
+                    uniform vec3 color2;
+                    varying vec3 vPosition;
+                    varying vec3 vNormal;
+                    
+                    void main() {
+                        float intensity = sin(time * 3.0 + vPosition.x * 0.1) * 0.5 + 0.5;
+                        vec3 color = mix(color1, color2, intensity);
+                        
+                        gl_FragColor = vec4(color, 0.6);
+                    }
+                `,
+                transparent: true
+            });
+
+            const plasma = new THREE.Mesh(geometry, material);
+            plasma.userData = { type: 'plasma', time: 0 };
+            scene.add(plasma);
+
+            // Add data point indicators
+            dataPoints.forEach((point, index) => {
+                if (index % 20 !== 0) return;
+
+                const indicatorGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                const indicatorMaterial = new THREE.MeshBasicMaterial({
+                    color: theme.accent,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const indicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
+                indicator.position.set(point.x, point.y, point.z);
+                indicator.userData = {
+                    dataPoint: point,
+                    type: 'dataPoint'
+                };
+
+                scene.add(indicator);
+
+                if (showLabels && index < 15) {
+                    createDataLabel(point, indicator);
+                }
+            });
+        }
+
+        function createAxes() {
+            const axisLength = 15;
+            const axisLabels = ['X', 'Y', 'Z'];
+            const axisColors = [0xff4444, 0x44ff44, 0x4444ff];
+
+            for (let i = 0; i < 3; i++) {
+                const geometry = new THREE.CylinderGeometry(0.05, 0.05, axisLength, 8);
+                const material = new THREE.MeshBasicMaterial({ color: axisColors[i] });
+                const axis = new THREE.Mesh(geometry, material);
+
+                if (i === 0) { // X axis
+                    axis.rotation.z = Math.PI / 2;
+                    axis.position.x = axisLength / 2;
+                } else if (i === 1) { // Y axis
+                    axis.position.y = axisLength / 2;
+                } else { // Z axis
+                    axis.rotation.x = Math.PI / 2;
+                    axis.position.z = axisLength / 2;
+                }
+
+                scene.add(axis);
+
+                // Add axis labels
+                const labelGeometry = new THREE.RingGeometry(0.5, 1, 8);
+                const labelMaterial = new THREE.MeshBasicMaterial({ 
+                    color: axisColors[i], 
+                    transparent: true, 
+                    opacity: 0.7 
+                });
+                const label = new THREE.Mesh(labelGeometry, labelMaterial);
+                
+                if (i === 0) {
+                    label.position.set(axisLength, 0, 0);
+                } else if (i === 1) {
+                    label.position.set(0, axisLength, 0);
+                } else {
+                    label.position.set(0, 0, axisLength);
+                }
+                
+                scene.add(label);
+            }
+        }
+
+        function createGrid() {
+            const gridHelper = new THREE.GridHelper(30, 30, themes[currentTheme].accent, themes[currentTheme].accent);
+            gridHelper.material.transparent = true;
+            gridHelper.material.opacity = 0.2;
+            scene.add(gridHelper);
+        }
+
+        function clearScene() {
+            const objectsToRemove = [];
+            scene.traverse((child) => {
+                if (child.isMesh || child.isPoints) {
+                    objectsToRemove.push(child);
+                }
+            });
+            objectsToRemove.forEach(obj => {
+                scene.remove(obj);
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach(mat => mat.dispose());
+                    } else {
+                        obj.material.dispose();
+                    }
+                }
+            });
+
+            // Re-add lights
+            setupLighting();
+        }
+
+        function setupMouseControls() {
+            const canvas = renderer.domElement;
+            
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('wheel', onMouseWheel);
+            canvas.addEventListener('click', onMouseClick);
+        }
+
+        function onMouseMove(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // Update camera position when not auto-rotating
+            if (!autoRotate) {
+                const mouseX = (event.clientX - window.innerWidth / 2) / 100;
+                const mouseY = (event.clientY - window.innerHeight / 2) / 100;
+                
+                camera.position.x += (mouseX - camera.position.x) * 0.05;
+                camera.position.z += (mouseY - camera.position.z) * 0.05;
+                camera.lookAt(scene.position);
+            }
+
+            // Raycasting for hover effects
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children);
+            
+            if (intersects.length > 0) {
+                const intersected = intersects[0].object;
+                if (intersected.userData && intersected.userData.type === 'dataPoint') {
+                    showTooltip(event, intersected.userData.dataPoint);
+                    hoveredObject = intersected;
+                } else {
+                    hideTooltip();
+                    hoveredObject = null;
+                }
+            } else {
+                hideTooltip();
+                hoveredObject = null;
+            }
+        }
+
+        function onMouseWheel(event) {
+            const zoomSpeed = 0.1;
+            const minDistance = 5;
+            const maxDistance = 50;
+            
+            const distance = camera.position.length();
+            const newDistance = Math.max(minDistance, Math.min(maxDistance, 
+                distance + event.deltaY * zoomSpeed));
+            
+            camera.position.normalize().multiplyScalar(newDistance);
+        }
+
+        function onMouseClick(event) {
+            if (hoveredObject && hoveredObject.userData.dataPoint) {
+                const point = hoveredObject.userData.dataPoint;
+                alert(`Data Point Details:\n\nCluster: ${point.clusterName}\nValue: ${Math.round(point.value)}\nPosition: (${Math.round(point.x)}, ${Math.round(point.y)}, ${Math.round(point.z)})\nID: ${point.label}`);
+            }
+        }
+
+        function showTooltip(event, dataPoint) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <strong>${dataPoint.clusterName}</strong><br>
+                Value: ${Math.round(dataPoint.value)}<br>
+                Position: (${Math.round(dataPoint.x)}, ${Math.round(dataPoint.y)}, ${Math.round(dataPoint.z)})
+            `;
+            tooltip.style.left = event.clientX + 10 + 'px';
+            tooltip.style.top = event.clientY - 10 + 'px';
+            tooltip.classList.add('visible');
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.remove('visible');
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            
+            const time = Date.now() * 0.001 * animationSpeed;
+            
+            // Auto rotation
+            if (autoRotate) {
+                camera.position.x = Math.cos(time * 0.1) * 25;
+                camera.position.z = Math.sin(time * 0.1) * 25;
+                camera.position.y = 15 + Math.sin(time * 0.05) * 3;
+                camera.lookAt(scene.position);
+            }
+
+            // Update animations based on chart type
+            scene.traverse((child) => {
+                if (child.userData) {
+                    if (child.userData.type === 'plasma' && child.material.uniforms) {
+                        child.material.uniforms.time.value = time;
+                    }
+                    
+                    if (child.userData.rotationSpeed) {
+                        child.rotation.x += child.userData.rotationSpeed.x * animationSpeed;
+                        child.rotation.y += child.userData.rotationSpeed.y * animationSpeed;
+                        child.rotation.z += child.userData.rotationSpeed.z * animationSpeed;
+                    }
+                    
+                    if (child.userData.originalY !== undefined) {
+                        child.position.y = child.userData.originalY + 
+                            Math.sin(time * 2 + child.position.x * 0.1) * animationIntensity * 0.5;
+                    }
+                }
+            });
+
+            // Update data labels
+            updateDataLabels();
+
+            // Update performance counter
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime >= lastTime + 1000) {
+                document.getElementById('fpsCounter').textContent = 
+                    Math.round(frameCount * 1000 / (currentTime - lastTime));
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // UI Control Functions
+        function setTheme(theme) {
+            currentTheme = theme;
+            document.querySelectorAll('.theme-color').forEach(opt => opt.classList.remove('active'));
+            document.querySelector(`.theme-color.${theme}`).classList.add('active');
+            
+            createVisualization();
+        }
+
+        function setChart(chartType) {
+            currentChart = chartType;
+            document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            createVisualization();
+            updateStats();
+        }
+
+        function updateAnimationSpeed(value) {
+            animationSpeed = parseFloat(value);
+        }
+
+        function updateAnimationIntensity(value) {
+            animationIntensity = parseFloat(value);
+        }
+
+        function updateZoom(value) {
+            const distance = parseFloat(value);
+            camera.position.normalize().multiplyScalar(distance);
+        }
+
+        function toggleAutoRotate() {
+            autoRotate = !autoRotate;
+            document.getElementById('autoRotateToggle').classList.toggle('active', autoRotate);
+        }
+
+        function toggleAxes() {
+            showAxes = !showAxes;
+            document.getElementById('axesToggle').classList.toggle('active', showAxes);
+            createVisualization();
+        }
+
+        function toggleLabels() {
+            showLabels = !showLabels;
+            document.getElementById('labelsToggle').classList.toggle('active', showLabels);
+            if (showLabels) {
+                createVisualization(); // Recreate to add labels
+            } else {
+                clearDataLabels();
+            }
+        }
+
+        function toggleGrid() {
+            showGrid = !showGrid;
+            document.getElementById('gridToggle').classList.toggle('active', showGrid);
+            createVisualization();
+        }
+
+        function resetCamera() {
+            camera.position.set(20, 15, 20);
+            camera.lookAt(scene.position);
+        }
+
+        function updateStats() {
+            const stats = {
+                particles: { points: dataPoints.length, dims: '3D', clusters: '5', quality: '97%' },
+                hologram: { points: Math.floor(dataPoints.length / 8), dims: '3D+T', clusters: '5', quality: '94%' },
+                quantum: { points: Math.floor(dataPoints.length / 12), dims: 'QBit', clusters: '∞', quality: '89%' },
+                neural: { points: '32', dims: 'NN', clusters: '4L', quality: '96%' },
+                crystalline: { points: Math.floor(dataPoints.length / 15), dims: 'Cryst', clusters: '5', quality: '92%' },
+                plasma: { points: Math.floor(dataPoints.length / 20), dims: 'Field', clusters: '~', quality: '98%' }
+            };
+            
+            const stat = stats[currentChart] || stats['particles'];
+            document.getElementById('pointCount').textContent = stat.points.toLocaleString();
+            document.getElementById('dimensionCount').textContent = stat.dims;
+            document.getElementById('clusterCount').textContent = stat.clusters;
+            document.getElementById('qualityScore').textContent = stat.quality;
+        }
+
+        function updateObjectCount() {
+            let count = 0;
+            scene.traverse(() => count++);
+            document.getElementById('objectCount').textContent = count;
+        }
+
+        // File upload functions
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processUploadedFile(file);
+            }
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const uploadArea = event.currentTarget;
+            uploadArea.classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                processUploadedFile(files[0]);
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.classList.remove('dragover');
+        }
+
+        function processUploadedFile(file) {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data = [];
+                    const content = e.target.result;
+                    
+                    if (file.name.endsWith('.csv')) {
+                        const lines = content.split('\n');
+                        const headers = lines[0].split(',').map(h => h.trim());
+                        
+                        for (let i = 1; i < lines.length && data.length < 2000; i++) {
+                            if (lines[i].trim()) {
+                                const values = lines[i].split(',');
+                                if (values.length >= 3) {
+                                    data.push({
+                                        x: parseFloat(values[0]) || (Math.random() - 0.5) * 20,
+                                        y: parseFloat(values[1]) || (Math.random() - 0.5) * 20,
+                                        z: parseFloat(values[2]) || (Math.random() - 0.5) * 20,
+                                        cluster: Math.floor(i / 100) % 5,
+                                        clusterName: `Group_${Math.floor(i / 100) % 5 + 1}`,
+                                        value: parseFloat(values[3]) || Math.random() * 100,
+                                        label: `Point_${i}`,
+                                        id: `uploaded_${i}`
+                                    });
+                                }
+                            }
+                        }
+                    } else if (file.name.endsWith('.json')) {
+                        const jsonData = JSON.parse(content);
+                        if (Array.isArray(jsonData)) {
+                            data = jsonData.slice(0, 2000).map((item, index) => ({
+                                x: item.x || item.X || item[0] || (Math.random() - 0.5) * 20,
+                                y: item.y || item.Y || item[1] || (Math.random() - 0.5) * 20,
+                                z: item.z || item.Z || item[2] || (Math.random() - 0.5) * 20,
+                                cluster: Math.floor(index / 200),
+                                clusterName: item.category || `Group_${Math.floor(index / 200) + 1}`,
+                                value: item.value || Math.random() * 100,
+                                label: item.label || `Point_${index}`,
+                                id: `uploaded_${index}`
+                            }));
+                        }
+                    }
+                    
+                    if (data.length > 0) {
+                        dataPoints = data;
+                        document.getElementById('datasetName').textContent = file.name;
+                        updateStats();
+                        createVisualization();
+                        
+                        setTimeout(() => {
+                            document.getElementById('loadingOverlay').classList.add('hidden');
+                        }, 1500);
+                    } else {
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                        alert('Error: Could not parse the data file. Please ensure it has numeric columns for X, Y, Z coordinates.');
+                    }
+                    
+                } catch (error) {
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                    alert('Error parsing file: ' + error.message);
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('main-canvas');
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+        });
+
+        // Initialize the application
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
